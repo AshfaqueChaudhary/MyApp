@@ -13,7 +13,7 @@ namespace MyApp.Models
         public int ProductId { get; set; }
         [ValidateNever]
         public Product Product { get; set; }
-
+        [ValidateNever]
         public string ApplicationUserId { get; set; }
         [ValidateNever]
 

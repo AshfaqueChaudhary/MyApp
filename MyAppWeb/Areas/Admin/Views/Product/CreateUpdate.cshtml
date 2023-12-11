@@ -37,7 +37,7 @@
         <div class="row mb-3">
             <label asp-for="Product.CategoryId"></label>
             <select asp-for="Product.CategoryId" asp-items="@Model.Categories" class="form-control">
-                <option selected disabled>--Select Category-- </option>
+                <option selected disabled>--Select Category--</option>
             </select>
             <span asp-validation-for="Product.CategoryId" class="text-danger"></span>
         </div>

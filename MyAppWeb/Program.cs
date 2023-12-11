@@ -19,6 +19,16 @@ builder.Services.AddDbContext<ApplicationDBContext>(options =>
 builder.Services.AddIdentity<IdentityUser,IdentityRole>().AddDefaultTokenProviders()
     .AddEntityFrameworkStores<ApplicationDBContext>();
 builder.Services.AddSingleton<IEmailSender, EmailSender>();
+
+
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.AccessDeniedPath = $"/Identity/Account/AccessDenied";
+    options.LoginPath = $"/Identity/Account/Login";
+    options.LogoutPath = $"/Identity/Account/Logout";
+});
+
+
 builder.Services.AddRazorPages();
 
 
