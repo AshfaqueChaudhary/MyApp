@@ -44,5 +44,6 @@ namespace MyApp.Models
         public string State { get; set; }
         [Required]
         public string PostalCode { get; set; }
+        public string Name { get; set; }
     }
 }
