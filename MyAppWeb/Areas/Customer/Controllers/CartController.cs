@@ -1,10 +1,12 @@
 ﻿using Humanizer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using MyApp.CommonHelper;
 using MyApp.DataAccessLayer.Infrastructure.IRepository;
 using MyApp.Models;
 using MyApp.Models.ViewModels;
+using Stripe.Checkout;
 using System.Security.Claims;
 
 namespace MyAppWeb.Areas.Customer.Controllers
@@ -62,7 +64,7 @@ namespace MyAppWeb.Areas.Customer.Controllers
             return View(vm);
         }
         [HttpPost]
-        
+
         public IActionResult Summary(CartVM vm)
         {
             var claimsIdentity = (ClaimsIdentity)User.Identity;
@@ -95,18 +97,74 @@ namespace MyAppWeb.Areas.Customer.Controllers
                 _unitOfWork.OrderDetail.Add(orderDetail);
                 _unitOfWork.Save();
             }
+
+
+            var domain = "https://localhost:7212/";
+            var options = new SessionCreateOptions
+            {
+                LineItems = new List<SessionLineItemOptions>(),
+                Mode = "payment",
+                SuccessUrl = domain+$"customer/cart/ordersuccess?id={vm.OrderHeader.Id}",
+                CancelUrl = domain+$"customer/cart/Index",
+            };
+            foreach (var item in vm.ListOfCart) 
+            {
+
+                var lineItemsOptions = new SessionLineItemOptions
+                {
+                    PriceData = new SessionLineItemPriceDataOptions
+                    {
+                        UnitAmount = (long)(item.Product.Price*100),
+                        Currency = "INR",
+                        ProductData = new SessionLineItemPriceDataProductDataOptions
+                        {
+                            Name = item.Product.Name,
+                        },
+                    },
+                    Quantity = item.Count,
+                };
+                options.LineItems.Add(lineItemsOptions);
+            }
+
+            var service = new SessionService();
+            Session session = service.Create(options);
+            _unitOfWork.OrderHeader.PaymentStatus(vm.OrderHeader.Id, session.Id, session.PaymentIntentId);
+            _unitOfWork.Save();
+
+            Response.Headers.Add("Location", session.Url);
+            return new StatusCodeResult(303);
+
+
+
+
+
             _unitOfWork.Cart.DeleteRange(vm.ListOfCart);
             _unitOfWork.Save();
-            return RedirectToAction("Index","Home");
+            return RedirectToAction("Index", "Home");
 
         }
 
-            public IActionResult plus(int id)
+        public IActionResult ordersuccess(int id)
+        {
+            var orderHeader = _unitOfWork.OrderHeader.GetT(x => x.Id == id);
+            var service = new SessionService();
+            Session session = service.Get(orderHeader.SessionId);
+            if (session.PaymentStatus.ToLower()=="paid") 
+            {
+                _unitOfWork.OrderHeader.UpdateStatus(id, OrderStatus.StatusApproved, PaymentStatus.StatusApproved);
+            }
+            List<Cart> cart = _unitOfWork.Cart.GetAll(x => x.ApplicationUserId == orderHeader.ApplicationUserId).ToList();
+            _unitOfWork.Cart.DeleteRange(cart);
+            _unitOfWork.Save();
+            return View(id);
+        }
+
+        public IActionResult plus(int id)
         {
             var cart = _unitOfWork.Cart.GetT(x => x.Id == id);
             _unitOfWork.Cart.IncrementCartItem(cart, 1);
             _unitOfWork.Save();
-            return RedirectToAction(nameof(Index)); 
+            return RedirectToAction(nameof(Index));
         }
 
         public IActionResult minus(int id)
